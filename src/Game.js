@@ -2,18 +2,22 @@ import React from 'react';
 import Board from './Board'
 import { calculateWinner } from './Utilities'
 
+const LOCAL_STORAGE_KEY = 'tictactoe.game.state';
+
 class Game extends React.Component {
   constructor(props) {
     super(props);
-    const initialState = Array(9).fill(null);
-    this.state = {
+    const storedGame = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY));
+
+    this.state = storedGame || {
       history: [{
-        squares: initialState
+        squares: Array(9).fill(null)
       }],
       xTurn: true,
       stepNum: 0
     }
   }
+
 
   jumpTo(step) {
     this.setState({
@@ -37,26 +41,52 @@ class Game extends React.Component {
       ]),
       xTurn: !this.state.xTurn,
       stepNum: history.length
+    }, () => {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(this.state));
     });
   }
 
   render() {
     const history = this.state.history;
-    const current = history[this.state.stepNum];
+    const stepNum = this.state.stepNum;
+    const current = history[stepNum];
     const winner = calculateWinner(current.squares);
+    let fullBoard = false;
 
     const moves = history.map((step, move) => {
-      const desc = move ? `Go to move #${move}` : `Go to game start`;
+      let desc = `Restart Game`;
+
+      if (move > 0) {
+        let player = (move % 2) === 0 ? 'O' : 'X';
+        let thisMove = history[move].squares;
+        let prevMove = history[move - 1].squares;
+        let difference = thisMove.findIndex((square, i) => square !== prevMove[i]);
+        desc = `${player} plays in square ${difference + 1}`;
+
+        let moveWinner = calculateWinner(thisMove);
+        if (moveWinner) desc += ' and wins!!'
+      }
+
+      if (move >= 9) fullBoard = true;
+
       return (
-        <li key={move }>
-          <button onClick={() => this.jumpTo(move)}>
+        <li key={move}>
+          <button
+            onClick={() => this.jumpTo(move)}
+            className={move === stepNum ? 'active' : ''}
+          >
             {desc}
           </button>
         </li>
       )
     });
 
-    let status = winner ? `Winner: ${winner}` : `Next player: ${this.state.xTurn ? 'X' : 'O'}`;
+    let status;
+
+    if (winner) status = `${winner} is the Winner!!`;
+    else if (fullBoard) status = 'DRAW!';
+    else status = `Next player: ${this.state.xTurn ? 'X' : 'O'}`;
+
 
     return (
       <div className="game">
